@@ -15,19 +15,30 @@ models.Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.start_scheduler()
+    if "VERCEL" not in os.environ:
+        scheduler.start_scheduler()
     yield
-    scheduler.shutdown_scheduler()
+    if "VERCEL" not in os.environ:
+        scheduler.shutdown_scheduler()
 
 app = FastAPI(title="Sistem Pelacakan Alumni", lifespan=lifespan)
 
 import os
-os.makedirs("d:/sites/daily-project3-rk/static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="d:/sites/daily-project3-rk/static"), name="static")
+
+# Gunakan jalur relatif yang aman untuk Vercel / serverless
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+# Pastikan folder static ada jika berjalan di lokal
+if not os.path.exists(STATIC_DIR) and "VERCEL" not in os.environ:
+    os.makedirs(STATIC_DIR, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
-    with open("d:/sites/daily-project3-rk/static/index.html", "r") as f:
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.post("/api/alumni/", response_model=schemas.Alumni, status_code=status.HTTP_201_CREATED)

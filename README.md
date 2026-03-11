@@ -1,12 +1,10 @@
 # Sistem Pelacakan Alumni
 
-Aplikasi berbasis web untuk melacak profil alumni menggunakan sumber data publik (simulasi). Sistem ini dapat digunakan oleh tim administrator atau operasional kampus untuk memverifikasi pencapaian alumni.
+Aplikasi berbasis web untuk melacak profil alumni menggunakan sumber data publik. Sistem ini dapat digunakan oleh tim administrator atau operasional kampus untuk memverifikasi pencapaian alumni.
 
-## Repository
-GitHub: [https://github.com/mock-username/sistem-pelacakan-alumni](https://github.com/mock-username/sistem-pelacakan-alumni)
 
 ## Live Demo
-Akses Web: [https://alumni.example.com](https://alumni.example.com)
+Akses Web: [https://alumni-tracker-plum.vercel.app/](https://alumni-tracker-plum.vercel.app/)
 
 ## Teknologi Utama
 - **Backend:** FastAPI, Python, SQLAlchemy, APScheduler
@@ -24,16 +22,6 @@ Akses Web: [https://alumni.example.com](https://alumni.example.com)
 5. Install dependensi: `pip install -r requirements.txt`
 6. Jalankan server: `uvicorn main:app --reload`
 7. Buka browser di alamat: `http://localhost:8000`
-
-## Deployment (Vercel)
-Sistem ini telah dikonfigurasi untuk dapat di-deploy secara mudah dan gratis menggunakan platform Vercel.
-
-1. Install Vercel CLI: `npm i -g vercel`
-2. Buka terminal di root project ini.
-3. Jalankan perintah: `vercel`
-4. Login dan ikuti instruksi CLI untuk menghubungkan (link) project.
-5. Jalankan `vercel --prod` untuk deploy ke production.
-*Catatan: Pastikan dependensi di `requirements.txt` ter-update.*
 
 ## Tabel Pengujian / Skenario
 
