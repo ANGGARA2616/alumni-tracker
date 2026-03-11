@@ -9,28 +9,49 @@ def generate_search_query(name: str, affiliation: str):
     return f'"{name}" "{affiliation}"'
 
 def fetch_from_sources(query: str):
-    from googlesearch import search
+    import requests
+    from bs4 import BeautifulSoup
     
     results = []
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    url = 'https://lite.duckduckgo.com/lite/'
+    data = {'q': query}
+    
     try:
-        # Memanggil googlesearch dengan advanced=True untuk mengambil meta title & description snippet
-        for r in search(query, num_results=5, advanced=True):
-            results.append({
-                "source": "Google Search",
-                "profile_url": getattr(r, 'url', ''),
-                "extracted_title": getattr(r, 'title', ''),
-                "extracted_snippet": getattr(r, 'description', '')
-            })
+        res = requests.post(url, headers=headers, data=data, timeout=10)
+        
+        # Mengecek apakah kena block rate limit dari search engine
+        if res.status_code == 429:
+            raise Exception("HTTP 429")
+            
+        soup = BeautifulSoup(res.text, 'html.parser')
+        
+        for tr in soup.find_all('tr'):
+            td_snippet = tr.find('td', class_='result-snippet')
+            if td_snippet:
+                snippet = td_snippet.text.strip()
+                prev_tr = tr.find_previous_sibling('tr')
+                if prev_tr:
+                    a = prev_tr.find('a', class_='result-link')
+                    if a:
+                        title = a.text.strip()
+                        url_link = a.get('href')
+                        results.append({
+                            "source": "Web Search",
+                            "profile_url": url_link,
+                            "extracted_title": title,
+                            "extracted_snippet": snippet
+                        })
+                        
+        return results[:5] # Ambil top 5
     except requests.exceptions.HTTPError as e:
-        if "429" in str(e) or e.response.status_code == 429:
+        if "429" in str(e) or (hasattr(e, 'response') and e.response.status_code == 429):
             raise Exception("HTTP 429")
         raise e
     except Exception as e:
         if "429" in str(e):
             raise Exception("HTTP 429")
         raise e
-        
-    return results
 
 def disambiguate_profile(profile_data: dict, target_name: str, target_affiliation: str, target_prodi: str):
     score = 0

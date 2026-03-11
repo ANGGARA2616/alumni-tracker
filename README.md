@@ -25,6 +25,16 @@ Akses Web: [https://alumni.example.com](https://alumni.example.com)
 6. Jalankan server: `uvicorn main:app --reload`
 7. Buka browser di alamat: `http://localhost:8000`
 
+## Deployment (Vercel)
+Sistem ini telah dikonfigurasi untuk dapat di-deploy secara mudah dan gratis menggunakan platform Vercel.
+
+1. Install Vercel CLI: `npm i -g vercel`
+2. Buka terminal di root project ini.
+3. Jalankan perintah: `vercel`
+4. Login dan ikuti instruksi CLI untuk menghubungkan (link) project.
+5. Jalankan `vercel --prod` untuk deploy ke production.
+*Catatan: Pastikan dependensi di `requirements.txt` ter-update.*
+
 ## Tabel Pengujian / Skenario
 
 | Fitur yang Diuji | Aspek Kualitas (ISO 25010) | Skenario Uji | Hasil yang Diharapkan | Status |

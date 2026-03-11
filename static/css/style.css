@@ -337,6 +337,8 @@ tr:hover {
     width: 90%;
     max-width: 500px;
     position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .close {
