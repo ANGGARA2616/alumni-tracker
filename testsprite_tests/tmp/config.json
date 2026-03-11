@@ -1,0 +1,19 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8000",
+  "backendAuthType": "public",
+  "executionArgs": {
+    "projectName": "daily-project3-rk",
+    "projectPath": "d:\\sites\\daily-project3-rk",
+    "testIds": [],
+    "additionalInstruction": "Buatkan pengujian spesifik untuk fitur verifikasi manual (Admin Review Flow). Buat alumni baru dengan title mengandung 'MARGINAL', trigger pencariannya agar status menjadi 'Perlu Verifikasi Manual'. Fetch hasilnya melalui GET /api/alumni/{id}/results, pastikan array tidak kosong. Terakhir kirim perintah verifikasi dengan PUT /api/alumni/{id}/status dengan JSON status 'Kemungkinan Kuat', dan pastikan status alumni berhasil berubah di database.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-hA_D4unM71WKMRCzXErv9qLYeDwV0qvMSgxjwSfLZgpZhfPERBNzdD4AiYT4nYgmOiBIxTKgGqFmIwXKw3BWrxyw_nGsXbSxd4xiL8FXlvKeUGl4_Vazgh5xJ6G_sSf52AE"
+    }
+  },
+  "serverPort": 59618,
+  "proxy": "http://ac4cdfb0-59b9-464a-8e6c-c972d4fa8e9a:gayufCv832k1fol8rhiFa5rXC3X15C3j@tun.testsprite.com:8080"
+}

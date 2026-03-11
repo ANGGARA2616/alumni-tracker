@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "create_new_alumni_record",
+    "description": "Test the POST /api/alumni/ endpoint with valid alumni data to ensure a new alumni record is created successfully and returned with a 201 status code."
+  },
+  {
+    "id": "TC002",
+    "title": "list_all_alumni_records",
+    "description": "Test the GET /api/alumni/ endpoint to verify it returns a list of all alumni records with a 200 status code."
+  },
+  {
+    "id": "TC003",
+    "title": "update_alumni_opt_out_status",
+    "description": "Test the PUT /api/alumni/{alumni_id}/opt_out endpoint to update the opt_out status of an alumni and verify the updated record is returned with a 200 status code."
+  },
+  {
+    "id": "TC004",
+    "title": "trigger_tracking_for_single_alumni",
+    "description": "Test the POST /api/trigger_tracking/{alumni_id} endpoint with a valid alumni_id to trigger the tracking pipeline and verify the tracking result summary is returned with a 200 status code."
+  },
+  {
+    "id": "TC005",
+    "title": "trigger_tracking_for_opted_out_alumni",
+    "description": "Test the POST /api/trigger_tracking/{alumni_id} endpoint for an alumni with opt_out=true and verify it returns a 400 error indicating tracking is not permitted."
+  },
+  {
+    "id": "TC006",
+    "title": "trigger_tracking_for_invalid_alumni_id",
+    "description": "Test the POST /api/trigger_tracking/{alumni_id} endpoint with an invalid alumni_id format and verify it returns a 400 or 422 validation error."
+  },
+  {
+    "id": "TC007",
+    "title": "trigger_tracking_all_eligible_alumni",
+    "description": "Test the POST /api/trigger_tracking_all endpoint to trigger tracking for all eligible alumni and verify the response contains processed_count, skipped_opt_out_count, and errors array with a 200 status code."
+  },
+  {
+    "id": "TC008",
+    "title": "trigger_tracking_all_with_no_eligible_alumni",
+    "description": "Test the POST /api/trigger_tracking_all endpoint when there are no eligible alumni and verify it returns a 200 status with processed_count=0 and a message indicating no eligible alumni."
+  },
+  {
+    "id": "TC009",
+    "title": "tracking_logic_end_to_end_pipeline",
+    "description": "Test the POST /api/trigger_tracking/{alumni_id} endpoint to verify the full tracking pipeline runs end-to-end, including profile generation, query building, source retrieval, disambiguation, cross-validation, and evidence persistence, returning a detailed tracking_result with evidence_id."
+  },
+  {
+    "id": "TC010",
+    "title": "admin_review_and_notification_flow",
+    "description": "Test the flow where POST /api/trigger_tracking/{alumni_id} returns status 'Perlu Verifikasi Manual' and verify that the admin UI can retrieve evidence and candidate details for manual review, and that notifications are sent on significant status changes."
+  }
+]
