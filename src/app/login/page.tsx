@@ -19,37 +19,44 @@ export default function LoginPage() {
     setSuccessMsg("");
     setLoading(true);
 
-    if (isRegister) {
-      if (password.length < 8) {
-        setError("Password minimal harus 8 karakter");
+    try {
+      if (isRegister) {
+        if (password.length < 8) {
+          setError("Password minimal harus 8 karakter");
+          setLoading(false);
+          return;
+        }
+        const { data, error } = await signUp.email({
+          email,
+          password,
+          name,
+        });
         setLoading(false);
-        return;
-      }
-      const { data, error } = await signUp.email({
-        email,
-        password,
-        name,
-      });
-      setLoading(false);
-      if (error) {
-        setError(error.message || "Gagal melakukan pendaftaran akun.");
+        if (error) {
+          setError(error.message || "Gagal melakukan pendaftaran akun.");
+        } else {
+          setSuccessMsg("Pendaftaran berhasil! Menyambungkan Anda ke dashboard...");
+          setTimeout(() => {
+             router.push("/dashboard");
+          }, 1500);
+        }
       } else {
-        setSuccessMsg("Pendaftaran berhasil! Menyambungkan Anda ke dashboard...");
-        setTimeout(() => {
-           router.push("/dashboard");
-        }, 1500);
+        const { data, error } = await signIn.email({
+          email,
+          password,
+        });
+        setLoading(false);
+        if (error) {
+          setError(error.message || "Email atau password salah.");
+        } else {
+          router.push("/dashboard");
+        }
       }
-    } else {
-      const { data, error } = await signIn.email({
-        email,
-        password,
-      });
+    } catch (err: any) {
       setLoading(false);
-      if (error) {
-        setError(error.message || "Email atau password salah.");
-      } else {
-        router.push("/dashboard");
-      }
+      setError(
+        "Koneksi otentikasi gagal. Jika Anda baru saja merilis ke Vercel, pastikan variabel BETTER_AUTH_URL dan BETTER_AUTH_SECRET telah diisi di pengaturan Vercel."
+      );
     }
   };
 
