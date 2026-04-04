@@ -43,7 +43,7 @@ export default function CsvUpload() {
   };
 
   return (
-    <div>
+    <div className="flex flex-col items-center sm:items-start gap-1">
       <input 
         type="file" 
         accept=".csv" 
@@ -59,6 +59,9 @@ export default function CsvUpload() {
         {loading ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
         {loading ? "Memproses..." : "Upload CSV"}
       </button>
+      <span className="text-[11px] text-slate-400 opacity-90 px-1">
+        Maks. 1.000 data per file
+      </span>
     </div>
   );
 }

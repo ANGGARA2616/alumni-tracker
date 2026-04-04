@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export async function importAlumniData(records: any[]) {
   if (!records || records.length === 0) return { error: "Data kosong" };
+  if (records.length > 1000) return { error: "Maksimal 1.000 data per unggahan. Pisahkan CSV Anda." };
   
   try {
     const valuesToInsert = records.map((record) => ({
