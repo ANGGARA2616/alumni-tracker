@@ -60,12 +60,12 @@ export default async function DashboardPage({
           
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-300 font-medium">Hello, {session.user.name}</span>
-            <Link 
+            <a 
               href="/api/auth/signout"
               className="text-slate-300 hover:text-red-400 transition-colors p-2 flex items-center gap-2 rounded-full hover:bg-slate-800"
             >
               <LogOut size={18} /> <span className="text-sm font-medium hidden sm:inline">Keluar</span>
-            </Link>
+            </a>
           </div>
         </div>
       </header>
