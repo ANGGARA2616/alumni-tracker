@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, Loader2, ChevronDown, ChevronUp, BriefcaseBusiness, Globe, Link2, MapPin, Mail, Phone, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function DashboardRow({ person }: { person: any }) {
   const [loading, setLoading] = useState(false);
@@ -22,13 +23,16 @@ export default function DashboardRow({ person }: { person: any }) {
       if (!res.ok) {
         const data = await res.json();
         setScrapeError(data.error);
+        toast.error("Gagal melacak: " + data.error);
         return;
       }
+      toast.success("Profil berhasil diperbarui!");
       router.refresh();
       // Auto expand to show results
       setExpanded(true);
     } catch (err: any) {
       setScrapeError(err.message);
+      toast.error("Error jaringan saat melacak");
     } finally {
       setLoading(false);
     }
@@ -43,12 +47,13 @@ export default function DashboardRow({ person }: { person: any }) {
     try {
       const res = await fetch(`/api/alumni/${person.id}`, { method: "DELETE" });
       if (res.ok) {
+        toast.success("Profil berhasil dihapus");
         router.refresh();
       } else {
-        alert("Gagal menghapus data.");
+        toast.error("Gagal menghapus data.");
       }
     } catch {
-      alert("Terjadi kesalahan jaringan batal menghapus data.");
+      toast.error("Terjadi kesalahan jaringan batal menghapus data.");
     } finally {
       setDeleting(false);
     }

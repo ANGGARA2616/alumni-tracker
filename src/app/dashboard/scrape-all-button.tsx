@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Loader2, X, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 
 export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) {
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) 
   }, []);
 
   const handleScrapeAll = async () => {
-    if (alumniIds.length === 0) return alert("Tidak ada data alumni untuk dilacak.");
+    if (alumniIds.length === 0) return toast.warning("Tidak ada data alumni untuk dilacak.");
     
     if (!confirm(`Anda yakin ingin melacak massal ${alumniIds.length} data alumni secara otomatis? Proses ini mungkin memerlukan waktu beberapa menit.`)) {
       return;

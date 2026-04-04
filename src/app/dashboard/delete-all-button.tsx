@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function DeleteAllButton() {
   const [loading, setLoading] = useState(false);
@@ -19,13 +20,13 @@ export default function DeleteAllButton() {
         method: "DELETE"
       });
       if (res.ok) {
-        alert("Seluruh data alumni berhasil dikosongkan.");
+        toast.success("Seluruh data alumni berhasil dikosongkan.");
         router.refresh();
       } else {
-        alert("Terjadi kesalahan saat menghapus data.");
+        toast.error("Terjadi kesalahan saat menghapus data.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      toast.error("Error: " + err.message);
     } finally {
       setLoading(false);
     }

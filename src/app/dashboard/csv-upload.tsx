@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Papa from "papaparse";
 import { UploadCloud, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { importAlumniData } from "./import-action";
 
 export default function CsvUpload() {
@@ -21,19 +22,20 @@ export default function CsvUpload() {
         try {
           const res = await importAlumniData(results.data);
           if (res?.error) {
-            alert("Gagal impor: " + res.error);
+            toast.error("Gagal impor: " + res.error);
           } else {
-            alert(`Berhasil mengimpor ${res?.count} data alumni!`);
+            toast.success(`Berhasil mengimpor ${res?.count} data alumni!`);
+            window.location.reload();
           }
         } catch (err: any) {
-          alert("Error: " + err.message);
+          toast.error("Error: " + err.message);
         } finally {
           setLoading(false);
           if (fileInputRef.current) fileInputRef.current.value = "";
         }
       },
       error: (error) => {
-        alert("Gagal membaca file CSV: " + error.message);
+        toast.error("Gagal membaca file CSV: " + error.message);
         setLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
