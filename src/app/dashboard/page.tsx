@@ -6,10 +6,7 @@ import { LogOut, Plus, Search, Edit3 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import ScrapeAllButton from "./scrape-all-button";
-import CsvUpload from "./csv-upload";
 import DashboardRow from "./dashboard-row";
-import DeleteAllButton from "./delete-all-button";
 import SearchInput from "./search-input";
 
 export default async function DashboardPage({
@@ -43,9 +40,7 @@ export default async function DashboardPage({
     ? await db.select().from(alumni).where(searchCondition).orderBy(alumni.nama_lulusan).limit(ITEMS_PER_PAGE).offset(offset)
     : await db.select().from(alumni).orderBy(alumni.nama_lulusan).limit(ITEMS_PER_PAGE).offset(offset);
 
-  // All IDs for mass scraping
-  const allIdsData = await db.select({ id: alumni.id }).from(alumni);
-  const allAlumniIds = allIdsData.map((p) => p.id);
+
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 relative overflow-hidden font-sans">
@@ -78,9 +73,6 @@ export default async function DashboardPage({
               <p className="text-sm text-slate-400">Kelola dan lengkapi data kontak serta karir alumni.</p>
             </div>
             <div className="flex flex-wrap gap-4 mt-4 sm:mt-0">
-              <CsvUpload />
-              <DeleteAllButton />
-              <ScrapeAllButton alumniIds={allAlumniIds} />
               <Link 
                 href="/form/new"
                 className="bg-blue-500 hover:bg-blue-600 hover:-translate-y-0.5 transition-all text-white px-5 py-3 rounded-lg text-sm font-medium flex items-center gap-2 shadow-[0_4px_14px_rgba(59,130,246,0.39)]"
