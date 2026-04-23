@@ -41,6 +41,7 @@ async function searchSerper(query: string): Promise<SearchResult[]> {
 
   // Acak urutan key setiap kali fungsi dipanggil
   const keys = shuffleArray(ALL_SERPER_KEYS);
+  let allKeysQuotaExhausted = true;
 
   for (let i = 0; i < keys.length; i++) {
     try {
@@ -56,15 +57,19 @@ async function searchSerper(query: string): Promise<SearchResult[]> {
       if (res.status === 400 || res.status === 403 || res.status === 429) {
         console.log(`[Serper] Key #${i + 1}/${keys.length} habis kuota, rotasi...`);
         if (i < keys.length - 1) await delay(300);
-        continue;
+        continue; // Key ini habis, coba key berikutnya
       }
 
       if (!res.ok) {
         const errorText = await res.text();
         console.error("[Serper] Status:", res.status, "Body:", errorText);
+        allKeysQuotaExhausted = false; // Bukan masalah kuota
         continue;
       }
 
+      // Status 200 OK — key ini berhasil, langsung return hasilnya
+      // (termasuk jika 0 organic results, itu bukan masalah kuota)
+      allKeysQuotaExhausted = false;
       const data = await res.json();
       const results: SearchResult[] = [];
 
@@ -80,14 +85,19 @@ async function searchSerper(query: string): Promise<SearchResult[]> {
         }
       }
 
-      if (results.length > 0) return results;
+      console.log(`[Serper] Key #${i + 1} berhasil, ${results.length} hasil.`);
+      return results; // Return langsung, meskipun 0 hasil
     } catch (err: any) {
-      console.error(`[Serper] Key #${i + 1} error:`, err.message);
+      console.error(`[Serper] Key #${i + 1} network error:`, err.message);
+      allKeysQuotaExhausted = false;
     }
   }
 
-  // Semua key habis
-  throw new Error("KUOTA_HABIS");
+  // Hanya throw KUOTA_HABIS jika BENAR-BENAR semua key kena 400/403/429
+  if (allKeysQuotaExhausted) {
+    throw new Error("KUOTA_HABIS");
+  }
+  return []; // Ada key yang gagal tapi bukan karena kuota
 }
 
 // ══════════════════════════════════════════════════

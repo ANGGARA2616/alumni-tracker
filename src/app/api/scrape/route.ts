@@ -29,17 +29,27 @@ export async function POST(req: Request) {
     const person = personQuery[0];
     const keywordContext = `${person.fakultas || ""} ${person.program_studi || ""} Universitas`;
 
-    // Jalankan auto-scraper OSINT ke Google
+    // Jalankan Hybrid Scraper (DDG + Regex + Gemini opsional)
     const result = await scrapePersonData(person.nama_lulusan, keywordContext);
 
     if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      // Tetap update status agar user tahu sudah dicoba
+      await db.update(alumni).set({
+        status_pelacakan: "Gagal Dilacak",
+        updatedAt: new Date(),
+      }).where(eq(alumni.id, id));
+      
+      return NextResponse.json({ 
+        error: result.error,
+        message: `Pelacakan gagal: ${result.error}` 
+      }, { status: 422 });
     }
 
     const extracted: any = result.data;
+    const engineUsed = result.engine || "legacy";
     
-    // Simpan hanya data yang ditemukan (Toleransi ketidaklengkapan data) ke DB
-    // Jangan tiban data lama jika sudah ada isinya kecuali kalau masih kosong
+    // Simpan hanya data yang ditemukan ke DB
+    // Jangan tiban data lama jika sudah ada isinya
     const updatePayload: any = {};
     if (extracted?.linkedin_url && !person.linkedin_url) updatePayload.linkedin_url = extracted.linkedin_url;
     if (extracted?.ig_url && !person.ig_url) updatePayload.ig_url = extracted.ig_url;
@@ -59,11 +69,15 @@ export async function POST(req: Request) {
 
     await db.update(alumni).set(updatePayload).where(eq(alumni.id, id));
 
+    // Label mesin yang digunakan
+    const engineLabel = engineUsed === "ai" ? "DDG + Gemini AI" : "DDG + Regex";
+
     return NextResponse.json({ 
       success: true, 
+      engine: engineUsed,
       message: hasChanges 
-         ? `Scraping selesai. Data berhasil diperbarui.`
-         : `Scraping selesai, namun data intelijen tidak ditemukan.`,
+         ? `[${engineLabel}] Data berhasil diperbarui.`
+         : `[${engineLabel}] Profil tidak ditemukan.`,
       data: updatePayload 
     });
 
