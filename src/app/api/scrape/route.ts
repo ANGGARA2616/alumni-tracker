@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { id } = body;
+    const { id, force = false } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Alumni ID is required" }, { status: 400 });
@@ -27,13 +27,25 @@ export async function POST(req: Request) {
     }
 
     const person = personQuery[0];
+
+    // Hemat kuota: skip alumni yang sudah berhasil dilacak (kecuali di-force)
+    if (!force && person.status_pelacakan === "Profil Ditemukan") {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        message: "Profil sudah pernah ditemukan, dilewati untuk hemat kuota.",
+      });
+    }
+
     const keywordContext = `${person.fakultas || ""} ${person.program_studi || ""} Universitas`;
 
-    // Jalankan Hybrid Scraper (DDG + Regex + Gemini opsional)
-    const result = await scrapePersonData(person.nama_lulusan, keywordContext);
+    // Jalankan Hybrid Scraper dengan data tambahan untuk query lebih spesifik
+    const result = await scrapePersonData(person.nama_lulusan, keywordContext, {
+      nim: person.nim || undefined,
+      tahunLulus: person.tanggal_lulus || undefined,
+    });
 
     if (result.error) {
-      // Tetap update status agar user tahu sudah dicoba
       await db.update(alumni).set({
         status_pelacakan: "Gagal Dilacak",
         updatedAt: new Date(),
@@ -69,8 +81,7 @@ export async function POST(req: Request) {
 
     await db.update(alumni).set(updatePayload).where(eq(alumni.id, id));
 
-    // Label mesin yang digunakan
-    const engineLabel = engineUsed === "ai" ? "DDG + Gemini AI" : "DDG + Regex";
+    const engineLabel = engineUsed === "ai" ? "Serper + Gemini AI" : "Serper + Regex";
 
     return NextResponse.json({ 
       success: true, 

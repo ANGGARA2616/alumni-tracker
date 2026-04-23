@@ -319,34 +319,60 @@ Jika tidak yakin, isi dengan string kosong "". Jangan mengarang data. Hanya kemb
 // ══════════════════════════════════════════════════
 //  FUNGSI UTAMA: HYBRID SEARCH + GEMINI (ANTI-LIMIT)
 //  
-//  Alur: Serper → DDG Fallback → Regex Extract → Gemini Enhance
+//  Strategi multi-query: coba 3 variasi query berbeda
+//  sebelum menyerah, agar hit rate meningkat tanpa
+//  membuang lebih banyak kuota per orang.
 // ══════════════════════════════════════════════════
 
-export async function scrapePersonData(name: string, keywordContext: string): Promise<ScrapeResult> {
+export async function scrapePersonData(
+  name: string,
+  keywordContext: string,
+  extras?: { nim?: string; tahunLulus?: string }
+): Promise<ScrapeResult> {
   try {
-    const query = `"${name}" ${keywordContext} linkedin`;
     let engineUsed: "ai" | "legacy" = "legacy";
     let allResults: SearchResult[] = [];
-    
-    // TAHAP 1: Coba Serper API
-    try {
-      allResults = await searchSerper(query);
-    } catch (e: any) {
-      if (e.message === "KUOTA_HABIS") {
-         return { error: "Kuota Serper API Habis (Not enough credits)", engine: "legacy" };
-      }
-      console.error("[Fallback] Serper gagal, beralih ke engine lain...");
+
+    // Bangun variasi query dari yang paling spesifik ke paling umum
+    const queries: string[] = [];
+
+    // Query 1: Paling spesifik — nama + konteks + linkedin
+    queries.push(`"${name}" ${keywordContext} site:linkedin.com`);
+
+    // Query 2: Nama + tahun lulus (jika ada) untuk disambiguasi
+    if (extras?.tahunLulus) {
+      queries.push(`"${name}" ${extras.tahunLulus} ${keywordContext} linkedin OR instagram OR facebook`);
+    } else {
+      queries.push(`"${name}" ${keywordContext} linkedin OR instagram OR facebook`);
     }
 
-    // TAHAP 2: Jika Serper kosong/error, coba DuckDuckGo HTML 
-    if (allResults.length === 0) {
-      console.log(`[Fallback] Serper habis/kosong. Menggunakan DuckDuckGo untuk: ${name}`);
+    // Query 3: Fallback umum — hanya nama tanpa tanda kutip
+    queries.push(`${name} alumni ${keywordContext}`);
+
+    // Coba setiap query hingga ada yang menghasilkan hasil relevan
+    for (const query of queries) {
+      if (allResults.length > 0) break;
+
+      // Coba Serper dulu
+      try {
+        const serperResults = await searchSerper(query);
+        if (serperResults.length > 0) {
+          allResults = serperResults;
+          console.log(`[Scraper] Query berhasil via Serper (${serperResults.length} hasil): ${query.substring(0, 60)}...`);
+          break;
+        }
+      } catch (e: any) {
+        if (e.message === "KUOTA_HABIS") {
+          return { error: "Kuota Serper API Habis (Not enough credits)", engine: "legacy" };
+        }
+      }
+
+      // Fallback: DuckDuckGo HTML
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        
-        let url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-        let res = await fetch(url, {
+        const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const res = await fetch(url, {
           method: "GET",
           signal: controller.signal,
           headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
@@ -354,37 +380,39 @@ export async function scrapePersonData(name: string, keywordContext: string): Pr
         clearTimeout(timeoutId);
 
         if (res.ok) {
-           const html = await res.text();
-           const chunks = html.split('class="result__body"');
-           for (let i = 1; i < chunks.length && allResults.length < 15; i++) {
-             const titleMatch = chunks[i].match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
-             if (titleMatch) {
-                let link = titleMatch[1];
-                if (link.includes('uddg=')) {
-                  const urlParam = link.match(/uddg=([^&]+)/);
-                  if (urlParam) link = decodeURIComponent(urlParam[1]);
-                }
-                const rawTitle = titleMatch[2].replace(/<[^>]+>/g, '').trim();
-                if (link.startsWith('http')) allResults.push({ title: rawTitle, url: link, snippet: "" });
-             }
-           }
+          const html = await res.text();
+          const chunks = html.split('class="result__body"');
+          const ddgResults: SearchResult[] = [];
+          for (let i = 1; i < chunks.length && ddgResults.length < 15; i++) {
+            const titleMatch = chunks[i].match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+            if (titleMatch) {
+              let link = titleMatch[1];
+              if (link.includes('uddg=')) {
+                const urlParam = link.match(/uddg=([^&]+)/);
+                if (urlParam) link = decodeURIComponent(urlParam[1]);
+              }
+              const rawTitle = titleMatch[2].replace(/<[^>]+>/g, '').trim();
+              if (link.startsWith('http')) ddgResults.push({ title: rawTitle, url: link, snippet: "" });
+            }
+          }
+          if (ddgResults.length > 0) {
+            allResults = ddgResults;
+            console.log(`[Scraper] Query berhasil via DDG (${ddgResults.length} hasil): ${query.substring(0, 60)}...`);
+            break;
+          }
         }
-      } catch (err) {
-         console.error("[Fallback] DuckDuckGo juga gagal/timeout.");
+      } catch {
+        // DDG timeout/gagal, lanjut ke query berikutnya
       }
     }
 
-    // TAHAP 3: Jika Search Engine gagal total, gunakan murni pengetahuan Gemini
+    // Jika semua query & semua engine gagal menghasilkan apapun
     if (allResults.length === 0) {
-       console.log(`[Fallback] Search Engine gagal. Menggunakan Murni Pengetahuan Gemini untuk: ${name}`);
-       const geminiDirect = await enhanceWithGemini(name, keywordContext, []);
-       if (geminiDirect) {
-          return { data: geminiDirect, engine: "ai" };
-       }
-       return { data: {}, engine: "legacy" };
+      console.log(`[Scraper] Semua ${queries.length} query tidak menghasilkan hasil untuk: ${name}`);
+      return { data: {}, engine: "legacy" };
     }
 
-    // Ekstrak dengan Regex dari hasil pencarian (Serper / DDG)
+    // Ekstrak dengan Regex dari hasil pencarian
     const regexData = extractWithRegex(allResults);
     
     // Coba tingkatkan dengan Gemini AI jika hasil kurang dari 2 field
@@ -410,3 +438,4 @@ export async function scrapePersonData(name: string, keywordContext: string): Pr
     return { error: err.message || "Scraper error", engine: "legacy" };
   }
 }
+
