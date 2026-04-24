@@ -9,6 +9,7 @@ export default function ScrapeButton({ person }: { person: any }) {
   const [modalData, setModalData] = useState<any>(null);
   const [modalType, setModalType] = useState<"success"|"error"|null>(null);
   const [activeTab, setActiveTab] = useState("LinkedIn");
+  const [engineUsed, setEngineUsed] = useState<string>("");
   const router = useRouter();
 
   const handleScrape = async () => {
@@ -30,6 +31,7 @@ export default function ScrapeButton({ person }: { person: any }) {
       } else {
         setModalType("success");
         setModalData({ message: data.message, extracted: data.data });
+        setEngineUsed(data.engine || "ai");
         router.refresh(); 
       }
     } catch (err: any) {
@@ -50,7 +52,7 @@ export default function ScrapeButton({ person }: { person: any }) {
           title="Lacak Profil Otomatis di Internet"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} 
-          {loading ? "Melacak..." : "Lacak"}
+          {loading ? "AI Menganalisis..." : "Lacak OSINT"}
         </button>
 
         <button 
@@ -190,9 +192,20 @@ export default function ScrapeButton({ person }: { person: any }) {
                   )}
 
                   {activeTab === "Sistem" && (
-                    <div className="bg-emerald-900/20 text-emerald-400 border border-emerald-800/30 p-4 rounded-xl text-sm w-full">
-                      Pencarian berhasil menembus filter dan mengekstrak data JSON.
-                      <p className="mt-2 text-xs opacity-75 whitespace-normal break-words">{modalData.message}</p>
+                    <div className="space-y-3 w-full">
+                      <div className="bg-emerald-900/20 text-emerald-400 border border-emerald-800/30 p-4 rounded-xl text-sm">
+                        Pencarian berhasil menembus filter dan mengekstrak data JSON.
+                        <p className="mt-2 text-xs opacity-75 whitespace-normal break-words">{modalData.message}</p>
+                      </div>
+                      {engineUsed && (
+                        <div className={`p-4 rounded-xl text-sm border ${engineUsed === 'legacy' ? 'bg-amber-900/20 text-amber-300 border-amber-500/20' : 'bg-blue-900/20 text-blue-300 border-blue-500/20'}`}>
+                          <span className="text-[11px] font-bold uppercase tracking-wider block mb-1">Mesin Pelacak</span>
+                          {engineUsed === 'legacy' 
+                            ? '🟠 DuckDuckGo + Regex (Mode Gratis — AI sedang limit)'
+                            : '🟢 Serper.dev + Gemini AI (Mode Premium)'
+                          }
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

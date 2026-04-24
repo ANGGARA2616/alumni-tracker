@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) {
+export default function ScrapeAllButton() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [totalToProcess, setTotalToProcess] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [results, setResults] = useState<{ id: string; status: string; detail: string }[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -19,9 +20,7 @@ export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) 
   }, []);
 
   const handleScrapeAll = async () => {
-    if (alumniIds.length === 0) return toast.warning("Tidak ada data alumni untuk dilacak.");
-    
-    if (!confirm(`Anda yakin ingin melacak massal ${alumniIds.length} data alumni secara otomatis? Proses ini mungkin memerlukan waktu beberapa menit.`)) {
+    if (!confirm(`Tindakan massal ini akan mengambil 250 data 'Belum Dilacak' dan melacaknya secara otomatis. Lanjutkan?`)) {
       return;
     }
 
@@ -30,45 +29,67 @@ export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) 
     setResults([]);
     setProgress(0);
 
-    const tempResults = [];
+    try {
+      // 1. Dapatkan 250 Target ID dari Server
+      const fetchReq = await fetch("/api/get-untracked-ids?limit=250");
+      const fetchRes = await fetchReq.json();
 
-    for (let i = 0; i < alumniIds.length; i++) {
-        setProgress(i + 1);
-        try {
-            const res = await fetch("/api/scrape", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: alumniIds[i] })
-            });
-            const data = await res.json();
-            
-            if (!res.ok) {
-                tempResults.push({ id: alumniIds[i], status: 'gagal', detail: data.error || 'Server error' });
-            } else {
-                tempResults.push({ id: alumniIds[i], status: 'sukses', detail: data.message });
-            }
-        } catch (err: any) {
-            tempResults.push({ id: alumniIds[i], status: 'gagal', detail: err.message });
-        }
-        
-        setResults([...tempResults]);
-        // Jeda kecil (rate limiter protection)
-        await new Promise(r => setTimeout(r, 1000));
+      if (!fetchRes.success || !fetchRes.ids || fetchRes.ids.length === 0) {
+        toast.info("Yey! Semua data di database sudah terlacak.");
+        setLoading(false);
+        return;
+      }
+
+      const targetIds: string[] = fetchRes.ids;
+      setTotalToProcess(targetIds.length);
+      const tempResults: typeof results = [];
+
+      // Proses 1 per 1 dengan jeda 3 detik (DDG HTML anti-limit)
+      for (let i = 0; i < targetIds.length; i++) {
+         const id = targetIds[i];
+         try {
+             const res = await fetch("/api/scrape", {
+                 method: "POST",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify({ id })
+             });
+             const data = await res.json();
+             
+             if (!res.ok) {
+                 tempResults.push({ id, status: 'gagal', detail: data.error || 'Server error' });
+             } else {
+                 tempResults.push({ id, status: 'sukses', detail: data.message });
+             }
+         } catch (err: any) {
+             tempResults.push({ id, status: 'gagal', detail: err.message });
+         }
+         
+         setProgress(i + 1);
+         setResults([...tempResults]);
+
+         // Jeda 1.5 detik antar alumni
+         if (i < targetIds.length - 1) {
+             await new Promise(r => setTimeout(r, 1500));
+         }
+      }
+
+    } catch (err: any) {
+       toast.error("Terjadi masalah saat mengatur pelacakan massal: " + err.message);
+    } finally {
+       setLoading(false);
+       router.refresh(); 
     }
-
-    setLoading(false);
-    router.refresh(); 
   };
 
   return (
     <>
       <button 
         onClick={handleScrapeAll}
-        disabled={loading || alumniIds.length === 0}
-        className="bg-blue-500 hover:bg-blue-600 hover:-translate-y-0.5 transition-all text-white px-5 py-3 rounded-lg text-sm font-medium flex items-center gap-2 shadow-[0_4px_14px_rgba(59,130,246,0.39)] disabled:opacity-50 disabled:hover:translate-y-0"
+        disabled={loading}
+        className="bg-indigo-600 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all text-white px-5 py-3 rounded-lg text-sm font-medium flex items-center gap-2 shadow-[0_4px_14px_rgba(79,70,229,0.39)] disabled:opacity-50 disabled:hover:translate-y-0"
       >
         {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
-        {loading ? `Melacak (${progress}/${alumniIds.length})...` : "Lacak Semua Alumni"}
+        {loading ? `Memproses (${progress}/${totalToProcess})...` : "Mulai Pelacakan Massal"}
       </button>
 
       {mounted && showModal && createPortal(
@@ -77,35 +98,40 @@ export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) 
             {!loading && (
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-full"
+                  className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors bg-slate-800 p-2 rounded-full z-10"
                 >
                   <X size={20} />
                 </button>
             )}
             
             <div className="flex items-center gap-3 mb-6 mt-2">
-              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                <Search className="text-blue-400" size={20} />
+              <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                <Search className="text-indigo-400" size={20} />
               </div>
-              <h3 className="text-xl font-bold text-white">
-                Pelacakan Massal
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  Pelacakan Massal
+                </h3>
+                {/* Teks Native Node dihapus */}
+              </div>
             </div>
             
             <p className="text-sm text-slate-300 mb-4 pb-4 border-b border-white/10">
               {loading 
-                ? `Sedang memindai profil ke-${progress} dari total ${alumniIds.length} ... Harap tunggu dan jangan tutup halaman ini.`
-                : `Selesai! Mengekstrak ${alumniIds.length} data.`}
+                ? `Memproses batch data. Target selesai: ${progress} / ${totalToProcess} ID ...`
+                : `Selesai siklus massal! ${progress} data telah diverifikasi.`}
             </p>
 
             <div className="bg-slate-950 rounded-lg p-1 border border-white/5 flex-grow mb-4 overflow-hidden flex flex-col shadow-inner">
                 {/* Progress Bar */}
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-3 flex-shrink-0">
-                    <div 
-                        className="h-full bg-blue-500 transition-all duration-300 ease-out"
-                        style={{ width: `${(progress / alumniIds.length) * 100}%` }}
-                    />
-                </div>
+                {totalToProcess > 0 && (
+                   <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mb-3 flex-shrink-0">
+                       <div 
+                           className="h-full bg-indigo-500 transition-all duration-300 ease-out"
+                           style={{ width: `${(progress / totalToProcess) * 100}%` }}
+                       />
+                   </div>
+                )}
                 
                 {/* Log Terminal Buatan */}
                 <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-2 font-mono text-[11px] custom-scrollbar">
@@ -118,19 +144,19 @@ export default function ScrapeAllButton({ alumniIds }: { alumniIds: string[] }) 
                     ))}
                     {loading && (
                         <div className="text-slate-500 flex items-center gap-2 mt-2">
-                            <Loader2 size={12} className="animate-spin" /> Menunggu operasi data selanjutnya...
+                            <Loader2 size={12} className="animate-spin" /> Memproses pelacakan...
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="mt-auto flex justify-end pt-4 border-t border-white/10">
+            <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/10">
               <button 
                 onClick={() => setShowModal(false)}
                 disabled={loading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(79,70,229,0.2)]"
               >
-                {loading ? "Mode Terkunci (Mengamankan URL)" : "Tutup Panel Pelacakan"}
+                {loading ? "Mode Terkunci (Mengamankan Koneksi)" : "Tutup Panel Pelacakan"}
               </button>
             </div>
           </div>

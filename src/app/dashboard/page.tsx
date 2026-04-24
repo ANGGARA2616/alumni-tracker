@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { alumni } from "@/lib/schema";
-import { count, ilike, SQL, sql } from "drizzle-orm";
+import { count, ilike, SQL, sql, and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { LogOut, Plus, Search, Edit3 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import DashboardRow from "./dashboard-row";
 import SearchInput from "./search-input";
+import ScrapeAllButton from "./scrape-all-button";
 
 export default async function DashboardPage({
   searchParams,
@@ -21,26 +22,36 @@ export default async function DashboardPage({
   const resolvedParams = searchParams ? await searchParams : {};
   const page = Number(resolvedParams.page) || 1;
   const q: string = resolvedParams.q || "";
+  const statusParam: string = resolvedParams.status || "all";
   const ITEMS_PER_PAGE = 15;
   const offset = (page - 1) * ITEMS_PER_PAGE;
 
   // Build condition
-  const searchCondition = q ? ilike(alumni.nama_lulusan, `%${q}%`) : undefined;
+  const conditions = [];
+  if (q) conditions.push(ilike(alumni.nama_lulusan, `%${q}%`));
+  
+  if (statusParam === "found") conditions.push(eq(alumni.status_pelacakan, "Profil Ditemukan"));
+  else if (statusParam === "not_found") conditions.push(eq(alumni.status_pelacakan, "Tidak Ditemukan"));
+  else if (statusParam === "untracked") conditions.push(eq(alumni.status_pelacakan, "Belum Dilacak"));
 
-  // Get total count
-  const totalCountResult = searchCondition 
-      ? await db.select({ value: count() }).from(alumni).where(searchCondition)
+  const finalCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Get total count (for pagination)
+  const totalCountResult = finalCondition 
+      ? await db.select({ value: count() }).from(alumni).where(finalCondition)
       : await db.select({ value: count() }).from(alumni);
       
   const totalAlumni = totalCountResult[0].value;
   const totalPages = Math.ceil(totalAlumni / ITEMS_PER_PAGE);
 
+  // Get total coverage count
+  const totalTrackedResult = await db.select({ value: count() }).from(alumni).where(eq(alumni.status_pelacakan, "Profil Ditemukan"));
+  const coverageCount = totalTrackedResult[0].value;
+
   // Paginated Data
-  const data = searchCondition
-    ? await db.select().from(alumni).where(searchCondition).orderBy(alumni.nama_lulusan).limit(ITEMS_PER_PAGE).offset(offset)
+  const data = finalCondition
+    ? await db.select().from(alumni).where(finalCondition).orderBy(alumni.nama_lulusan).limit(ITEMS_PER_PAGE).offset(offset)
     : await db.select().from(alumni).orderBy(alumni.nama_lulusan).limit(ITEMS_PER_PAGE).offset(offset);
-
-
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 relative overflow-hidden font-sans">
@@ -73,6 +84,7 @@ export default async function DashboardPage({
               <p className="text-sm text-slate-400">Kelola dan lengkapi data kontak serta karir alumni.</p>
             </div>
             <div className="flex flex-wrap gap-4 mt-4 sm:mt-0">
+              <ScrapeAllButton />
               <Link 
                 href="/form/new"
                 className="bg-blue-500 hover:bg-blue-600 hover:-translate-y-0.5 transition-all text-white px-5 py-3 rounded-lg text-sm font-medium flex items-center gap-2 shadow-[0_4px_14px_rgba(59,130,246,0.39)]"
@@ -82,6 +94,27 @@ export default async function DashboardPage({
             </div>
           </div>
         </section>
+
+        {/* Coverage System Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
+          <div className="bg-gradient-to-br from-blue-600/10 to-indigo-900/40 border border-blue-500/20 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+            {/* Background design */}
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
+            <div className="p-3 bg-blue-500/10 rounded-xl w-fit mb-4 border border-blue-500/20 group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 className="text-slate-400 text-xs tracking-wider uppercase font-bold mb-1">Total Coverage System</h3>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-slate-400 text-sm">Total Data Ditetapkan:</span>
+            </div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-3xl font-extrabold text-white tracking-tight">{coverageCount.toLocaleString('id-ID')}</span>
+              <span className="text-sm font-semibold text-blue-400">Profil Terlacak</span>
+            </div>
+          </div>
+        </div>
 
         {/* Disclaimer Area */}
         <div className="bg-red-500/10 border-l-4 border-red-500 p-4 mb-8 rounded-r-lg shadow-sm flex items-start">
@@ -139,7 +172,7 @@ export default async function DashboardPage({
               </div>
               <div className="flex items-center gap-2">
                 {page > 1 ? (
-                  <Link href={`/dashboard?page=${page - 1}${q ? `&q=${q}` : ''}`} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg transition-colors border border-white/10 shadow-sm flex items-center gap-1">
+                  <Link href={`/dashboard?page=${page - 1}${q ? `&q=${q}` : ''}${statusParam !== 'all' ? `&status=${statusParam}` : ''}`} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg transition-colors border border-white/10 shadow-sm flex items-center gap-1">
                     ← Sebelumnya
                   </Link>
                 ) : (
@@ -153,7 +186,7 @@ export default async function DashboardPage({
                 </div>
 
                 {page < totalPages ? (
-                  <Link href={`/dashboard?page=${page + 1}${q ? `&q=${q}` : ''}`} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg transition-colors border border-white/10 shadow-sm flex items-center gap-1">
+                  <Link href={`/dashboard?page=${page + 1}${q ? `&q=${q}` : ''}${statusParam !== 'all' ? `&status=${statusParam}` : ''}`} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-lg transition-colors border border-white/10 shadow-sm flex items-center gap-1">
                     Selanjutnya →
                   </Link>
                 ) : (
